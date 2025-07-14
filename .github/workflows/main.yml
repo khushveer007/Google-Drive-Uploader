@@ -15,31 +15,33 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Download Latest ngrok
-  runs-on: 
-    $downloadUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip"
-    Write-Host Downloading ngrok from:"$downloadUrl"
-    Invoke-WebRequest -Uri $downloadUrl -OutFile ngrok.zip
-    Expand-Archive ngrok.zip -DestinationPath ngrok
-    # Verify version (should be 3.x or higher)
-  
-
+      run: |
+        $downloadUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip"
+        Write-Host "Downloading ngrok from: $downloadUrl"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile ngrok.zip
+        Expand-Archive ngrok.zip -DestinationPath ngrok
+      shell: pwsh
 
     - name: Authenticate ngrok
       run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      shell: pwsh
 
     - name: Enable Remote Desktop
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+      shell: pwsh
 
     - name: Set Administrator Password
       run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "YourSecurePassword123!" -Force)
+      shell: pwsh
 
     - name: Create RDP Tunnel
       run: .\ngrok\ngrok.exe tcp 3389 --log=stdout
+      shell: pwsh
 
     - name: Keep session alive
       run: |
@@ -47,3 +49,4 @@ jobs:
           Write-Host "Session is active - $(Get-Date)"
           Start-Sleep -Seconds 300
         }
+      shell: pwsh
