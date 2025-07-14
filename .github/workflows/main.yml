@@ -1,4 +1,4 @@
-name: Windows 11 RDP VPS
+name: Windows 11 RDP VPS - Fixed
 
 on: 
   workflow_dispatch:
@@ -14,13 +14,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download ngrok
+    - name: Download Latest ngrok
       run: |
-        Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-        Expand-Archive ngrok.zip
+        # Download the latest ngrok version directly from GitHub releases
+        $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/inconshreveable/ngrok/releases/latest"
+        $downloadUrl = ($latest.assets | Where-Object { $_.name -like "*windows-amd64.zip" }).browser_download_url
+        Invoke-WebRequest -Uri $downloadUrl -OutFile ngrok.zip
+        Expand-Archive ngrok.zip -DestinationPath ngrok
+        
+    - name: Verify ngrok version
+      run: .\ngrok\ngrok.exe version
 
     - name: Authenticate ngrok
-      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      run: .\ngrok\ngrok.exe config add-authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
