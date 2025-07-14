@@ -1,16 +1,44 @@
-name: Azure Windows 11 VPS
+name: Windows 11 RDP VPS
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 9999
+
     steps:
-    - name: Setup Azure CLI
-      uses: azure/CLI@v1
-      with:
-        azcliversion: 2.30.0
-        inlineScript: |
-          curl -skLO https://raw.githubusercontent.com/gd-discov3r/win_11_vps/main/setup.sh
-          chmod +x setup.sh
-          ./setup.sh
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download ngrok
+      run: |
+        Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+        Expand-Archive ngrok.zip
+
+    - name: Authenticate ngrok
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.2zrlXx8VrNAKhjJtILzrdoF7zcg_6BC3jo5rB3kPjBDY1ngMz }}
+
+    - name: Enable Remote Desktop
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+
+    - name: Set Administrator Password
+      run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "YourSecurePassword123!" -Force)
+
+    - name: Create RDP Tunnel
+      run: .\ngrok\ngrok.exe tcp 3389 --log=stdout
+
+    - name: Keep session alive
+      run: |
+        while ($true) {
+          Write-Host "Session is active - $(Get-Date)"
+          Start-Sleep -Seconds 300
+        }
