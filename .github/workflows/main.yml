@@ -1,0 +1,64 @@
+name: macOS Remote Desktop via VNC
+
+on:
+  workflow_dispatch:
+    inputs:
+      vnc_password:
+        description: 'VNC Password'
+        required: true
+        default: 'password123'
+
+jobs:
+  macos-vnc-access:
+    runs-on: macos-latest
+    timeout-minutes: 360  # 6 hours max
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup VNC Server
+      run: |
+        # Enable VNC
+        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -activate -configure -access -on \
+          -clientopts -setvnclegacy -vnclegacy yes \
+          -clientopts -setvncpw -vncpw ${{ github.event.inputs.vnc_password }} \
+          -restart -agent -privs -all
+        
+        # Get system info
+        echo "macOS Version: $(sw_vers -productVersion)"
+        echo "System IP: $(curl -s ifconfig.me)"
+        
+    - name: Install and setup ngrok for VNC tunneling
+      run: |
+        # Install ngrok
+        brew install ngrok/ngrok/ngrok
+        
+        # Authenticate ngrok (you'll need to add NGROK_AUTH_TOKEN to secrets)
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        
+        # Start ngrok tunnel for VNC (port 5900)
+        ngrok tcp 5900 --log=stdout &
+        
+        sleep 10
+        
+        # Get ngrok tunnel URL
+        curl -s localhost:4040/api/tunnels | jq '.tunnels[0].public_url'
+        
+    - name: Display connection info
+      run: |
+        echo "=== VNC Connection Information ==="
+        echo "1. Install a VNC client on your local machine"
+        echo "2. Use the ngrok URL shown above to connect"
+        echo "3. Use password: ${{ github.event.inputs.vnc_password }}"
+        echo "4. Runner will stay alive for up to 6 hours"
+        
+    - name: Keep runner alive
+      run: |
+        echo "VNC server is running. Connect using the information above."
+        # Keep the runner alive
+        while true; do
+          sleep 60
+          echo "Runner still alive at $(date)"
+        done
